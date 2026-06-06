@@ -120,7 +120,11 @@
   const DEFAULT={ ids:[], cache:{} };  // cache: id -> {romaji,english,cover,siteUrl,format}
 
   function load(){ try{ return Object.assign(structuredClone(DEFAULT), JSON.parse(localStorage.getItem(LS_KEY))||{}); }catch(e){ return structuredClone(DEFAULT); } }
-  function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){ /* storage blocked — keep working in-memory */ } }
+  function save(){ try{
+    // prune cache to tracked ids: cacheMedia() writes every searched result into state.cache, but only tracked cards read it — without this the persisted blob grows unbounded
+    const keep=new Set(state.ids); for(const k in state.cache){ if(!keep.has(+k)&&!keep.has(k)) delete state.cache[k]; }
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+  }catch(e){ /* storage blocked — keep working in-memory */ } }
 
   let state=load();
   let airing={};   // id -> nextAiringEpisode {episode,airingAt} | null  (status also stored under id+"_s")
@@ -316,7 +320,7 @@
    SW can't refresh them. On resume/focus, refetch this page; if its build token changed, reload once.
    BUILD is the literal placeholder in the source (feature inert) and is stamped to a unique id at publish. */
 (function(){
-  var BUILD="20260606164549";
+  var BUILD="__APP_BUILD__";
   if(BUILD.indexOf("APP_BUILD")>-1) return;            // unstamped (local/dev) -> disabled
   var busy=false;
   function check(){
